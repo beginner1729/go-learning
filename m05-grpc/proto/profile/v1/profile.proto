@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package profile.v1;
+
+option go_package = "cxm/m05/proto/profile/v1;profilev1";
+
+// ProfileService stores flexible customer profile traits and an event log.
+service ProfileService {
+  rpc GetProfile(GetProfileRequest) returns (Profile);
+  rpc UpsertProfile(UpsertProfileRequest) returns (Profile);
+  // Server streaming: emit each recorded event for a customer.
+  rpc ListEvents(ListEventsRequest) returns (stream Event);
+}
+
+message Profile {
+  string customer_id = 1;
+  map<string, string> traits = 2;
+  int64 updated_at_unix = 3;
+}
+
+message GetProfileRequest {
+  string customer_id = 1;
+}
+
+message UpsertProfileRequest {
+  string customer_id = 1;
+  map<string, string> traits = 2;
+}
+
+message Event {
+  string id = 1;
+  string customer_id = 2;
+  string type = 3;
+  int64 occurred_at_unix = 4;
+}
+
+message ListEventsRequest {
+  string customer_id = 1;
+}

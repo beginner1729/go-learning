@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-api
+  labels: { app: customer-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: customer-api }
+  template:
+    metadata:
+      labels: { app: customer-api }
+    spec:
+      terminationGracePeriodSeconds: 30   # let graceful shutdown drain in-flight reqs
+      containers:
+        - name: customer-api
+          image: ghcr.io/acme/pulse-customer-api:v1.0.0
+          ports: [{ containerPort: 8080 }]
+          envFrom:
+            - configMapRef: { name: customer-api-config }
+            - secretRef: { name: customer-api-secrets }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-api
+spec:
+  selector: { app: customer-api }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: customer-api-config
+data:
+  HTTP_ADDR: ":8080"
+  LOG_LEVEL: "info"
+  PULSE_NATS_URL: "nats://nats:4222"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: customer-api-secrets
+type: Opaque
+stringData:
+  # In real clusters these come from a secrets manager (Vault, SSM, Sealed Secrets),
+  # never committed in plaintext. Shown here only to illustrate wiring.
+  PULSE_PG_DSN: "postgres://pulse:pulse@postgres:5432/pulse?sslmode=disable"
