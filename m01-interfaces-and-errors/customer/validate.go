@@ -1,42 +1,20 @@
 package customer
 
-import (
-	"errors"
-	"fmt"
-	"strings"
-)
-
-// ValidationError is a typed error: it carries structured data (which field,
-// why) so the caller can build a precise response. Callers extract it with
-// errors.As(err, &ve).
-type ValidationError struct {
-	Field string
-	Msg   string
-}
-
-func (e *ValidationError) Error() string {
-	return fmt.Sprintf("validation: %s: %s", e.Field, e.Msg)
-}
-
-// Validate returns the error interface (not *ValidationError) to avoid the
-// typed-nil trap and to allow errors.Join to combine multiple field failures.
-func (c Customer) Validate() error {
-	return errors.Join(
-		validateEmail(c.Email),
-		validateName(c.Name),
-	)
-}
-
-func validateEmail(e Email) error {
-	if !strings.Contains(string(e), "@") {
-		return &ValidationError{Field: "email", Msg: "must contain @"}
-	}
-	return nil
-}
-
-func validateName(n string) error {
-	if strings.TrimSpace(n) == "" {
-		return &ValidationError{Field: "name", Msg: "must not be empty"}
-	}
-	return nil
-}
+// M01 Exercise 3.2 — a validation error that carries data.
+//
+// Build here:
+//
+//   - `ValidationError` struct with `Field string` and `Msg string`, and an
+//     Error() method (pointer receiver) like:
+//         "validation: <field>: <msg>"
+//     Returning a typed error lets callers extract the offending field with
+//     errors.As(err, &ve).
+//
+//   - `(c Customer) Validate() error` — note the return type is the `error`
+//     interface, NOT *ValidationError (avoids the typed-nil trap and lets you
+//     combine failures). Use errors.Join to combine per-field checks:
+//         - email must contain "@"      -> &ValidationError{Field:"email", ...}
+//         - name must not be blank/space -> &ValidationError{Field:"name", ...}
+//     A passing field contributes nil; errors.Join drops nils for you.
+//
+// TODO(3.2): implement ValidationError and (Customer).Validate.

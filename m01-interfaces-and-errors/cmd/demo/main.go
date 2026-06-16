@@ -1,5 +1,11 @@
 // Command demo exercises the M1 customer + errorx packages end-to-end.
-// Run: go run ./cmd/demo
+//
+// This wires together YOUR packages (./customer and ./errorx). It will not
+// compile until you have implemented them. Run it once it does:
+//
+//	go run ./cmd/demo
+//
+// Compare against the reference: go run ./solution-cmd/demo
 package main
 
 import (

@@ -116,7 +116,10 @@ func TestDispatcher_GracefulCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	in := make(chan Notification)
-	go func() { for range d.DeadLetters() { } }()
+	go func() {
+		for range d.DeadLetters() {
+		}
+	}()
 	go func() {
 		// keep offering work; cancellation should make Run return promptly
 		for i := 0; ; i++ {

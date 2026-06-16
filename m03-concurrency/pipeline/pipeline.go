@@ -1,95 +1,48 @@
-// Package pipeline provides reusable concurrency primitives: a bounded worker
-// pool with cancellation + first-error semantics, and a fan-in merge.
+// Package pipeline is YOUR implementation target for M03 Exercises 3.1 & 3.2.
+//
+// Goal: make `go test ./pipeline/...` pass. The tests in pipeline_test.go
+// define the exact API you must provide. Reference answer key:
+// ../solution-pipeline/ (and §3.1 / §3.2 in ../M03-concurrency.md). Try it
+// yourself before peeking.
+//
+// Build here:
+//
+//   - Run[T, R any](ctx context.Context, workers int, items []T,
+//     work func(context.Context, T) (R, error)) ([]R, error) — Exercise 3.1.
+//
+//     A bounded worker pool: process `items` with `workers` concurrent
+//     goroutines, PRESERVING output order (index results so completion order
+//     doesn't matter), stop early on the FIRST error (cancelling the rest via
+//     a derived context.WithCancel + defer cancel()), and return that error.
+//     Treat workers < 1 as 1. The hand-rolled equivalent of
+//     golang.org/x/sync/errgroup.
+//
+//     What the tests pin down:
+//
+//   - TestRun_OrderPreservedAndConcurrent: results come back in input order
+//     (got[i] == i*2) and real concurrency happens (max in-flight >= 2).
+//
+//   - TestRun_FirstErrorCancels: the returned error matches the sentinel
+//     the work func returned (errors.Is).
+//
+//     Idioms: a `jobs` channel of indices fed by one goroutine; an `out`
+//     channel of {idx, val} drained into a pre-sized results slice; an
+//     errCh with cap 1 written via select/default so only the first error
+//     wins and no worker blocks; a closer goroutine doing wg.Wait(); close(out).
+//
+//   - Merge[T any](chans ...<-chan T) <-chan T — Exercise 3.2.
+//
+//     Fan-in: forward every value from every input channel onto one output
+//     channel, and close the output EXACTLY ONCE after all inputs are drained.
+//     One goroutine per input + a WaitGroup + a closer goroutine.
+//
+//     What the test pins down:
+//
+//   - TestMerge: every value from every input arrives (sum == 15).
+//
+// Delete this comment block as you implement. The package will not compile
+// until Run and Merge exist.
 package pipeline
 
-import (
-	"context"
-	"sync"
-)
-
-// Run processes items with `workers` concurrent goroutines. It preserves output
-// order, stops early on the first error (cancelling the rest), and returns that
-// error. A hand-rolled equivalent of golang.org/x/sync/errgroup for teaching.
-func Run[T, R any](ctx context.Context, workers int, items []T,
-	work func(context.Context, T) (R, error)) ([]R, error) {
-
-	if workers < 1 {
-		workers = 1
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	type result struct {
-		idx int
-		val R
-	}
-	jobs := make(chan int)
-	out := make(chan result)
-	errCh := make(chan error, 1) // first error wins; later ones dropped
-
-	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				v, err := work(ctx, items[i])
-				if err != nil {
-					select {
-					case errCh <- err:
-						cancel()
-					default:
-					}
-					return
-				}
-				select {
-				case out <- result{i, v}:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	}
-
-	go func() {
-		defer close(jobs)
-		for i := range items {
-			select {
-			case jobs <- i:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	go func() { wg.Wait(); close(out) }()
-
-	results := make([]R, len(items))
-	for r := range out {
-		results[r.idx] = r.val
-	}
-	select {
-	case err := <-errCh:
-		return nil, err
-	default:
-		return results, nil
-	}
-}
-
-// Merge fans multiple input channels into one, closing the output after every
-// input is drained.
-func Merge[T any](chans ...<-chan T) <-chan T {
-	out := make(chan T)
-	var wg sync.WaitGroup
-	wg.Add(len(chans))
-	for _, c := range chans {
-		go func(c <-chan T) {
-			defer wg.Done()
-			for v := range c {
-				out <- v
-			}
-		}(c)
-	}
-	go func() { wg.Wait(); close(out) }()
-	return out
-}
+// TODO(3.1): implement Run[T, R].
+// TODO(3.2): implement Merge[T].

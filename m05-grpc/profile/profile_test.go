@@ -2,8 +2,8 @@ package profile_test
 
 import (
 	"context"
-	"log/slog"
 	"io"
+	"log/slog"
 	"net"
 	"testing"
 	"time"

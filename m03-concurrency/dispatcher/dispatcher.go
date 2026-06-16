@@ -1,130 +1,60 @@
-// Package dispatcher implements Pulse's notification dispatcher: a bounded
-// worker pool that sends notifications with retry/backoff, dead-letters
-// permanent failures, exposes atomic metrics, and drains gracefully on cancel.
+// Package dispatcher is YOUR implementation target for M03 §5 ("Implement it
+// yourself"): Pulse's notification dispatcher. A bounded worker pool that sends
+// notifications with retry/backoff, dead-letters permanent failures, exposes
+// atomic metrics, and drains gracefully on cancel.
+//
+// Goal: make `go test ./dispatcher/...` pass (run it with -race) and
+// `go run ./cmd/demo` work. The tests in dispatcher_test.go define the exact
+// API you must provide. Reference answer key: ../solution-dispatcher/ (and §5
+// in ../M03-concurrency.md). Try it yourself before peeking.
+//
+// Build here:
+//
+//   - Notification struct — the unit of work: ID, CustomerID, Channel, Body
+//     (all string).
+//
+//   - Sender interface { Send(ctx context.Context, n Notification) error }.
+//     A returned error means "retryable failure" for this exercise.
+//
+//   - Metrics struct of race-free counters readable at any time, using
+//     sync/atomic: Sent, Failed (individual attempts that errored),
+//     DeadLettered (notifications that exhausted all retries). atomic.Int64.
+//
+//   - Functional options (the M2 pattern): type Option func(*Dispatcher), with
+//     WithWorkers(n int) Option
+//     WithMaxAttempts(n int) Option
+//     WithBackoff(d time.Duration) Option
+//     WithLogger(l *slog.Logger) Option
+//
+//   - New(sender Sender, opts ...Option) *Dispatcher — sensible defaults
+//     (e.g. 4 workers, 3 max attempts, ~10ms base backoff, slog.Default()),
+//     a buffered dead-letter channel, then apply opts.
+//
+//   - (*Dispatcher).DeadLetters() <-chan Notification — exposes the
+//     dead-letter channel for a drainer to read. It must be drained or it can
+//     fill and block.
+//
+//   - (*Dispatcher).Run(ctx context.Context, in <-chan Notification) — start
+//     `workers` goroutines reading from `in`. Each notification is retried up
+//     to maxAttempts with EXPONENTIAL backoff (base * 2^(attempt-1)) inside a
+//     select that also watches ctx.Done() (backoff must stay cancellable). On
+//     success bump Metrics.Sent; on each errored attempt bump Metrics.Failed;
+//     on exhausting retries bump Metrics.DeadLettered and push onto the
+//     dead-letter channel. Run blocks until all workers exit — either because
+//     `in` was closed (drain in-flight work, clean exit) OR ctx was cancelled
+//     (graceful stop) — then closes the dead-letter channel exactly once.
+//
+// What the tests pin down:
+//   - TestDispatcher_RetriesThenSucceeds: with one transient failure per ID,
+//     10 inputs => Sent==10, Failed==10, 0 dead-lettered.
+//   - TestDispatcher_DeadLetters: always-failing sends => 5 inputs all
+//     dead-lettered, Sent==0.
+//   - TestDispatcher_GracefulCancel: after cancel, Run returns promptly
+//     (well under 2s) even while work is still being offered.
+//
+// Delete this comment block as you implement. The package will not compile
+// until the types and functions the tests reference exist.
 package dispatcher
 
-import (
-	"context"
-	"log/slog"
-	"sync"
-	"sync/atomic"
-	"time"
-)
-
-// Notification is the unit of work. In M9 these arrive from JetStream.
-type Notification struct {
-	ID         string
-	CustomerID string
-	Channel    string // "email", "sms", ...
-	Body       string
-}
-
-// Sender abstracts the delivery mechanism (email/SMS/push). Returning an error
-// means "retryable failure" for this teaching example.
-type Sender interface {
-	Send(ctx context.Context, n Notification) error
-}
-
-// Metrics are race-free counters readable at any time.
-type Metrics struct {
-	Sent         atomic.Int64
-	Failed       atomic.Int64 // individual send attempts that errored
-	DeadLettered atomic.Int64 // notifications that exhausted all retries
-}
-
-type Dispatcher struct {
-	workers     int
-	sender      Sender
-	maxAttempts int
-	baseBackoff time.Duration
-	log         *slog.Logger
-
-	Metrics Metrics
-	dead    chan Notification
-}
-
-// Option configures a Dispatcher (functional options from M2).
-type Option func(*Dispatcher)
-
-func WithWorkers(n int) Option      { return func(d *Dispatcher) { d.workers = n } }
-func WithMaxAttempts(n int) Option  { return func(d *Dispatcher) { d.maxAttempts = n } }
-func WithBackoff(d2 time.Duration) Option {
-	return func(d *Dispatcher) { d.baseBackoff = d2 }
-}
-func WithLogger(l *slog.Logger) Option { return func(d *Dispatcher) { d.log = l } }
-
-func New(sender Sender, opts ...Option) *Dispatcher {
-	d := &Dispatcher{
-		workers:     4,
-		sender:      sender,
-		maxAttempts: 3,
-		baseBackoff: 10 * time.Millisecond,
-		log:         slog.Default(),
-		dead:        make(chan Notification, 64),
-	}
-	for _, opt := range opts {
-		opt(d)
-	}
-	return d
-}
-
-// DeadLetters yields notifications that exhausted their retries. Drain it
-// (e.g. log/persist) or it can fill and block once full.
-func (d *Dispatcher) DeadLetters() <-chan Notification { return d.dead }
-
-// Run consumes from in until it is closed (then drains in-flight work) or until
-// ctx is cancelled (graceful stop). It blocks until all workers exit, then
-// closes the dead-letter channel.
-func (d *Dispatcher) Run(ctx context.Context, in <-chan Notification) {
-	var wg sync.WaitGroup
-	for i := 0; i < d.workers; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			d.worker(ctx, in)
-		}(i)
-	}
-	wg.Wait()
-	close(d.dead)
-}
-
-func (d *Dispatcher) worker(ctx context.Context, in <-chan Notification) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case n, ok := <-in:
-			if !ok {
-				return // input drained: clean exit
-			}
-			d.process(ctx, n)
-		}
-	}
-}
-
-func (d *Dispatcher) process(ctx context.Context, n Notification) {
-	for attempt := 0; attempt < d.maxAttempts; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff, but always cancellable.
-			backoff := d.baseBackoff * (1 << (attempt - 1))
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(backoff):
-			}
-		}
-		err := d.sender.Send(ctx, n)
-		if err == nil {
-			d.Metrics.Sent.Add(1)
-			return
-		}
-		d.Metrics.Failed.Add(1)
-		d.log.Debug("send failed", "id", n.ID, "attempt", attempt+1, "err", err)
-	}
-	// Exhausted retries -> dead-letter (respect cancellation while enqueuing).
-	d.Metrics.DeadLettered.Add(1)
-	select {
-	case d.dead <- n:
-	case <-ctx.Done():
-	}
-}
+// TODO(§5): implement Notification, Sender, Metrics, Option, the With* options,
+// New, Dispatcher, DeadLetters, and Run.

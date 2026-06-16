@@ -66,6 +66,10 @@ A multi-service Go system:
 
 ## Module list
 
+### Week 0 — Toolchain mechanics (skip if fluent)
+- **M0. How to build a small Go project** → modules, packages, imports, and the
+  `go run`/`build`/`test`/`vet`/`fmt` workflow, via three guided pre-built projects.
+
 ### Week 1 — Go language depth (the foundation everything else rests on)
 - **M1. Interfaces, composition & idiomatic error handling** → defines Pulse's
   domain model + error taxonomy.

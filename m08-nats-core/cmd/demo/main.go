@@ -1,5 +1,8 @@
-// Command demo shows core NATS: a publisher, a queue group of workers consuming
-// customer.created events, and a request-reply lookup. Run: go run ./cmd/demo
+// Command demo exercises YOUR M08 bus + events packages end-to-end: a
+// publisher, a queue group of workers consuming customer.created events, and a
+// request-reply lookup. It is wired to the LEARNER packages, so it will NOT
+// build until you implement ../../bus and ../../events. Run: go run ./cmd/demo
+// (set PULSE_NATS_URL and have a NATS server running — see ../../M08-nats-core.md).
 package main
 
 import (

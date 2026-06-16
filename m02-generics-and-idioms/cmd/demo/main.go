@@ -1,5 +1,6 @@
 // Command demo exercises the M2 generic helpers, store, and config options.
-// Run: go run ./cmd/demo
+// It is wired to YOUR packages and won't build until you implement them
+// (genx, store, config). Run: go run ./cmd/demo
 package main
 
 import (

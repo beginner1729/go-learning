@@ -1,5 +1,6 @@
-// Command demo runs an end-to-end flow against real Postgres.
-// Requires PULSE_PG_DSN. Run: go run ./cmd/demo
+// Command demo runs an end-to-end flow against real Postgres, wired to YOUR
+// packages. It will NOT build until you implement cxm/m06/customer and
+// cxm/m06/db. Requires PULSE_PG_DSN. Run: go run ./cmd/demo
 package main
 
 import (

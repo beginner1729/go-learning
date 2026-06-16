@@ -1,4 +1,7 @@
 // Command server runs the profile-svc gRPC server. Run: go run ./cmd/server
+//
+// This wires YOUR interceptor and profile packages. It will NOT build until
+// you implement them (../interceptor/interceptor.go and ../profile/profile.go).
 package main
 
 import (

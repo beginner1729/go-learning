@@ -1,54 +1,30 @@
-// Package db builds the pgx connection pool and runs goose migrations.
+// Package db is YOUR implementation target for M06.
+//
+// Goal: make `go test ./customer/... ./db/...` pass (or skip cleanly when
+// PULSE_PG_DSN is unset) and `go run ./cmd/migrate` work. The customer tests
+// call db.Migrate and db.NewPool, so this package must exist for them to build.
+// Reference answer key: ../solution-db/ (and §2.2 / §4 of ../M06-postgresql.md).
+// Try it yourself before peeking.
+//
+// Build, in THIS file (db.go):
+//
+//   - `NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error)` —
+//     parse the DSN with pgxpool.ParseConfig, set MaxConns (e.g. 10),
+//     MaxConnIdleTime and HealthCheckPeriod, create the pool with
+//     pgxpool.NewWithConfig, then Ping to fail fast on a bad connection
+//     (Close the pool and return the error if Ping fails).
+//
+//   - `Migrate(dsn string) error` — apply all pending goose migrations.
+//     Open a database/sql handle with the "pgx" driver
+//     (blank-import github.com/jackc/pgx/v5/stdlib), then
+//     goose.SetBaseFS(migrations.FS), goose.SetDialect("postgres"),
+//     goose.Up(sqlDB, "."). The migration SQL lives in the SHARED
+//     ../migrations/ package — import it unchanged as "cxm/m06/migrations"
+//     (it embeds the *.sql files); do NOT copy or modify it.
+//
+// Delete this comment block as you implement. The package will not compile
+// until NewPool and Migrate exist.
 package db
 
-import (
-	"context"
-	"database/sql"
-	"fmt"
-	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // database/sql driver "pgx" for goose
-	"github.com/pressly/goose/v3"
-
-	"cxm/m06/migrations"
-)
-
-// NewPool creates and verifies a pgx connection pool.
-func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	cfg, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return nil, fmt.Errorf("parse dsn: %w", err)
-	}
-	cfg.MaxConns = 10
-	cfg.MaxConnIdleTime = 5 * time.Minute
-	cfg.HealthCheckPeriod = time.Minute
-
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("new pool: %w", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("ping: %w", err)
-	}
-	return pool, nil
-}
-
-// Migrate applies all pending migrations using goose over a database/sql handle.
-func Migrate(dsn string) error {
-	sqlDB, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return fmt.Errorf("open sql: %w", err)
-	}
-	defer sqlDB.Close()
-
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
-	if err := goose.Up(sqlDB, "."); err != nil {
-		return fmt.Errorf("goose up: %w", err)
-	}
-	return nil
-}
+// TODO: implement NewPool and Migrate, importing the shared cxm/m06/migrations
+// package (unchanged) for the embedded SQL files.

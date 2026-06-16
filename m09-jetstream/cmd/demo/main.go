@@ -1,5 +1,6 @@
-// Command demo shows JetStream durability + idempotency + replay.
-// Run: go run ./cmd/demo
+// Command demo shows JetStream durability + idempotency + replay, wired to
+// YOUR packages. It won't build until you implement ./events and ./stream.
+// Run (needs PULSE_NATS_URL): go run ./cmd/demo
 package main
 
 import (

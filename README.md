@@ -22,6 +22,7 @@ Work the lesson, do the exercises, then run/extend the code.
 
 | # | Lesson | Code | Needs |
 |---|--------|------|-------|
+| 0 | [Getting started: build a small Go project](M00-getting-started.md) | `m00-getting-started/` | — |
 | 1 | [Interfaces & errors](M01-interfaces-and-errors.md) | `m01-interfaces-and-errors/` | — |
 | 2 | [Generics & idioms](M02-generics-and-idioms.md) | `m02-generics-and-idioms/` | — |
 | 3 | [Concurrency](M03-concurrency.md) | `m03-concurrency/` | — |

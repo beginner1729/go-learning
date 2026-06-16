@@ -1,5 +1,6 @@
-// Command demo runs an end-to-end flow against real MongoDB.
-// Requires PULSE_MONGO_URI. Run: go run ./cmd/demo
+// Command demo runs an end-to-end flow against real MongoDB, wired to YOUR
+// packages. It won't build until you implement cxm/m07/mongodb and
+// cxm/m07/profile. Requires PULSE_MONGO_URI. Run: go run ./cmd/demo
 package main
 
 import (

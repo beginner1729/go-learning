@@ -1,6 +1,8 @@
 // Command server is a fully instrumented HTTP service: structured logs with
 // trace IDs, Prometheus /metrics, OpenTelemetry spans, and graceful shutdown
-// that flushes telemetry. Run: go run ./cmd/server
+// that flushes telemetry. It is wired to YOUR obs package, so it will NOT
+// build until you implement obs/ (NewLogger, InitTracer, Registry, Instrument,
+// LoggerFrom, NotificationsSent). Run: go run ./cmd/server
 package main
 
 import (

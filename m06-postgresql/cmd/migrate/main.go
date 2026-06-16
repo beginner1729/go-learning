@@ -1,4 +1,6 @@
-// Command migrate applies all pending migrations. Run: go run ./cmd/migrate
+// Command migrate applies all pending migrations, wired to YOUR db package.
+// It will NOT build until you implement cxm/m06/db. Requires PULSE_PG_DSN.
+// Run: go run ./cmd/migrate
 package main
 
 import (

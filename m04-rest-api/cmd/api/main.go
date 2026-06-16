@@ -1,4 +1,6 @@
 // Command api runs Pulse's public REST customer-api with graceful shutdown.
+// It is wired to YOUR packages (cxm/m04/customer, cxm/m04/httpapi) and will NOT
+// build until you implement them. Reference: ../../solution-cmd/api.
 // Run: go run ./cmd/api
 package main
 

@@ -1,5 +1,12 @@
 // Command demo runs the notification dispatcher with a simulated, flaky sender
-// and prints the resulting metrics. Run: go run ./cmd/demo
+// and prints the resulting metrics.
+//
+// This wires together YOUR package (./dispatcher). It will not compile until
+// you have implemented it. Run it once it does:
+//
+//	go run ./cmd/demo
+//
+// Compare against the reference: go run ./solution-cmd/demo
 package main
 
 import (
@@ -15,7 +22,10 @@ import (
 )
 
 // simSender simulates network latency and a ~25% transient failure rate.
-type simSender struct{ r *rand.Rand; mu sync.Mutex }
+type simSender struct {
+	r  *rand.Rand
+	mu sync.Mutex
+}
 
 func (s *simSender) Send(ctx context.Context, n dispatcher.Notification) error {
 	select {
